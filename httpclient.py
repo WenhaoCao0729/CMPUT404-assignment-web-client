@@ -18,14 +18,18 @@
 # Write your own HTTP GET and POST
 # The point is to understand what you have to send and get experience with it
 
+from importlib.resources import path
 import sys
 import socket
 import re
+from unittest import result
+from urllib import response
 # you may use urllib to encode data appropriately
 import urllib.parse
 
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
+    
 
 class HTTPResponse(object):
     def __init__(self, code=200, body=""):
@@ -33,7 +37,21 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
+    def get_host_port_path(self,url):
+        res = urllib.parse.urlparse(url)
+        if res.port:
+            port =res.port
+        else:
+            port = 80
+
+        if not res.path:
+            path = '/'
+        else:
+            path = res.path
+        
+        host = res.hostname
+
+        return (host,port,path)
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,16 +86,33 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        (host,port,path) = self.get_host_port_path(url)
+        self.connect(host,port)
+
+        parse_status = f"GET {path} HTTP/1.1\r\n"
+        parse_head = f"Host: {host}:{port}\r\nConnection: close\r\nAccept: */*\r\n\r\n"
+        
+        self.sendall(parse_status+parse_head)
+        response = self.recvall(self.socket)
+        # print(response)
+        code = int(response.split()[1])
+        body = response.split("\r\n\r\n")[1]
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
+        (host,port,path) = self.get_host_port_path(url)
+        self.connect(host,port)
+
+
+
+        parse_status = f"POST {path} HTTP/1.1\r\n"
+        parse_head = f"Host: {host}:{port}\r\nConnection: close\r\nAccept: */*\r\n\r\n"
         code = 500
         body = ""
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
+        
         if (command == "POST"):
             return self.POST( url, args )
         else:
@@ -85,11 +120,16 @@ class HTTPClient(object):
     
 if __name__ == "__main__":
     client = HTTPClient()
+
     command = "GET"
+    
     if (len(sys.argv) <= 1):
         help()
         sys.exit(1)
     elif (len(sys.argv) == 3):
+        print(( sys.argv[2], sys.argv[1] ))
         print(client.command( sys.argv[2], sys.argv[1] ))
+        
     else:
         print(client.command( sys.argv[1] ))
+        
